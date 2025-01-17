@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/pterm/pterm"
 	"io"
 	"log"
 	"net/http"
@@ -11,6 +10,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/pterm/pterm"
 )
 
 type station struct {
