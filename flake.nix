@@ -25,7 +25,7 @@
         };
         packages.default = pkgs.buildGoModule {
           pname = "somacli";
-          version = "0.0.1";
+          version = "1.0.0";
           src = ./.;
           vendorHash = "sha256-0YQ1WlPnvjRwg7nWJkOh3IdHhowBGbutbQOTPgBfxO4=";
         };
