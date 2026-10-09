@@ -1,0 +1,72 @@
+name: Release
+
+# Push a tag like v1.1.0 to build binaries and publish a GitHub release.
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tag matches the version in VERSION
+        run: |
+          version=$(cat VERSION)
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::tag $GITHUB_REF_NAME doesn't match VERSION $version"
+            exit 1
+          fi
+
+  build:
+    name: build (${{ matrix.goos }}-${{ matrix.goarch }})
+    needs: check
+    strategy:
+      fail-fast: false
+      matrix:
+        # Pure Go, so everything cross-compiles from one runner.
+        include:
+          - { goos: linux, goarch: amd64 }
+          - { goos: linux, goarch: arm64 }
+          - { goos: darwin, goarch: amd64 }
+          - { goos: darwin, goarch: arm64 }
+    runs-on: ubuntu-latest
+    env:
+      GOOS: ${{ matrix.goos }}
+      GOARCH: ${{ matrix.goarch }}
+      # Static binaries run on any Linux distribution.
+      CGO_ENABLED: "0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - run: go build -trimpath -ldflags "-s -w -X main.version=$(cat VERSION)" -o somacli .
+      - name: Package
+        run: |
+          name=somacli-${GITHUB_REF_NAME}-${GOOS}-${GOARCH}
+          mkdir -p "dist/$name"
+          cp somacli README.md LICENSE "dist/$name/"
+          tar -C dist -czf "dist/$name.tar.gz" "$name"
+          (cd dist && shasum -a 256 "$name.tar.gz" > "$name.tar.gz.sha256")
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/*.tar.gz*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "$GITHUB_REF_NAME" dist/*
+          --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes

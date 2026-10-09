@@ -14,6 +14,9 @@ import (
 	"github.com/pterm/pterm"
 )
 
+// Set at build time with -ldflags "-X main.version=...".
+var version = "dev"
+
 type station struct {
 	name        string
 	description string
@@ -53,6 +56,10 @@ func getStations() []station {
 }
 
 func main() {
+	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-v") {
+		fmt.Println("somacli", version)
+		return
+	}
 	if _, err := exec.LookPath("mpv"); err != nil {
 		log.Fatal(err)
 	}
